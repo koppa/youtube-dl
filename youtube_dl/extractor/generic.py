@@ -2435,7 +2435,6 @@ class GenericIE(InfoExtractor):
                 bc_urls, video_id, video_title,
                 getter=lambda x: smuggle_url(x, {'referrer': url}),
                 ie='BrightcoveNew')
-
         # Look for Nexx embeds
         nexx_urls = NexxIE._extract_urls(webpage)
         if nexx_urls:
@@ -3148,6 +3147,11 @@ class GenericIE(InfoExtractor):
         if zype_urls:
             return self.playlist_from_matches(
                 zype_urls, video_id, video_title, ie=ZypeIE.ie_key())
+
+        # look for open graph video tags
+        og_content_url = (self._og_findall_video_url(webpage) + self._og_findall_audio_url(webpage))
+        if og_content_url:
+            return self.playlist_from_matches(og_content_url, video_id, video_title)
 
         # Look for HTML5 media
         entries = self._parse_html5_media_entries(url, webpage, video_id, m3u8_id='hls')

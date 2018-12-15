@@ -435,6 +435,8 @@
  - **Le**: 乐视网
  - **Learnr**
  - **Lecture2Go**
+ - **Lecturio**
+ - **LecturioCourse**
  - **LEGO**
  - **Lemonde**
  - **Lenta**

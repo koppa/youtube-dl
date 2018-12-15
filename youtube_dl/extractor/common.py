@@ -985,6 +985,31 @@ class InfoExtractor(object):
             self._downloader.report_warning('unable to extract %s' % _name + bug_reports_message())
             return None
 
+    def _findall_regex(self, pattern, string, name, flags=0, group=None):
+        """
+        Perform a regex search on the given string, using a single or a list of
+        patterns returning the first matching group for all matches.
+        The list of regexes will be joined to a single expression,
+        """
+        if not isinstance(pattern, (str, compat_str, compiled_regex_type)):
+            # compile all patterns to one
+            pattern = '|'.join(pattern)
+
+        matches = list(re.finditer(pattern, string, flags))
+
+        if not self._downloader.params.get('no_color') and compat_os_name != 'nt' and sys.stderr.isatty():
+            _name = '\033[0;34m%s\033[0m' % name
+        else:
+            _name = name
+
+        if group is None:
+            # return the first matching group
+            return [next(g for g in m.groups() if g is not None)
+                    for m in matches]
+        else:
+            return [m.group(group) for m in matches]
+
+
     def _html_search_regex(self, pattern, string, name, default=NO_DEFAULT, fatal=True, flags=0, group=None):
         """
         Like _search_regex, but strips HTML tags and unescapes entities.
@@ -994,6 +1019,13 @@ class InfoExtractor(object):
             return clean_html(res).strip()
         else:
             return res
+
+    def _html_findall_regex(self, pattern, string, name, flags=0, group=None):
+        """
+        Like _html_search_regex, but returns all matches
+        """
+        ress = self._findall_regex(pattern, string, name, flags, group)
+        return [clean_html(r).strip() for r in ress]
 
     def _get_netrc_login_info(self, netrc_machine=None):
         username = None
@@ -1085,6 +1117,19 @@ class InfoExtractor(object):
             return None
         return unescapeHTML(escaped)
 
+    def _og_find_property_all(self, prop, html, name=None, **kargs):
+        if not isinstance(prop, (list, tuple)):
+            prop = [prop]
+        if name is None:
+            name = 'OpenGraph %s' % prop[0]
+        og_regexes = []
+        for p in prop:
+            og_regexes.extend(self._og_regexes(p))
+        escaped = self._search_regex(og_regexes, html, name, flags=re.DOTALL, **kargs)
+        if escaped is None:
+            return None
+        return unescapeHTML(escaped)
+
     def _og_search_thumbnail(self, html, **kargs):
         return self._og_search_property('image', html, 'thumbnail URL', fatal=False, **kargs)
 
@@ -1099,6 +1144,18 @@ class InfoExtractor(object):
         if secure:
             regexes = self._og_regexes('video:secure_url') + regexes
         return self._html_search_regex(regexes, html, name, **kargs)
+
+    def _og_findall_video_url(self, html, name='video url', secure=True, **kargs):
+        regexes = self._og_regexes('video') + self._og_regexes('video:url')
+        if secure:
+            regexes = self._og_regexes('video:secure_url') + regexes
+        return self._html_findall_regex(regexes, html, name, **kargs)
+
+    def _og_findall_audio_url(self, html, name='audio url', secure=True, **kargs):
+        regexes = self._og_regexes('audio') + self._og_regexes('audio:url')
+        if secure:
+            regexes = self._og_regexes('audio:secure_url') + regexes
+        return self._html_findall_regex(regexes, html, name, **kargs)
 
     def _og_search_url(self, html, **kargs):
         return self._og_search_property('url', html, **kargs)
